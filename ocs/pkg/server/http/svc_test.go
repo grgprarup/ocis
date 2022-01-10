@@ -390,7 +390,7 @@ type GetConfigResponse struct {
 	} `json:"ocs" xml:"ocs"`
 }
 
-func assertStatusCode(t *testing.T, statusCode int, res *httptest.ResponseRecorder, ocsVersion string) {
+func assertHTTPStatusCode(t *testing.T, statusCode int, res *httptest.ResponseRecorder, ocsVersion string) {
 	if ocsVersion == ocsV1 {
 		assert.Equal(t, 200, res.Code)
 	} else {
@@ -892,10 +892,10 @@ func TestCreateUser(t *testing.T) {
 
 					if scenario.err == nil {
 						assert.True(t, response.Ocs.Meta.Success(ocsVersion), unsuccessfulResponseText)
-						assertStatusCode(t, 200, res, ocsVersion)
+						assertHTTPStatusCode(t, 200, res, ocsVersion)
 						assertUsersSame(t, scenario.user, response.Ocs.Data, false)
 					} else {
-						assertStatusCode(t, 400, res, ocsVersion)
+						assertHTTPStatusCode(t, 400, res, ocsVersion)
 						assertResponseMeta(t, *scenario.err, response.Ocs.Meta)
 					}
 
@@ -983,7 +983,7 @@ func TestGetUsers(t *testing.T) {
 				}
 			}
 
-			assertStatusCode(t, 200, res, ocsVersion)
+			assertHTTPStatusCode(t, 200, res, ocsVersion)
 			assert.True(t, response.Ocs.Meta.Success(ocsVersion), unsuccessfulResponseText)
 			for _, user := range users {
 				assert.Contains(t, response.Ocs.Data.Users, user.ID)
@@ -1021,7 +1021,7 @@ func TestGetUsersDefaultUsers(t *testing.T) {
 				}
 			}
 
-			assertStatusCode(t, 200, res, ocsVersion)
+			assertHTTPStatusCode(t, 200, res, ocsVersion)
 			assert.True(t, response.Ocs.Meta.Success(ocsVersion), unsuccessfulResponseText)
 			for _, user := range defaultUsers {
 				assert.Contains(t, response.Ocs.Data.Users, user)
@@ -1081,7 +1081,7 @@ func TestGetUser(t *testing.T) {
 					}
 				}
 
-				assertStatusCode(t, 200, res, ocsVersion)
+				assertHTTPStatusCode(t, 200, res, ocsVersion)
 				assert.True(t, response.Ocs.Meta.Success(ocsVersion), "The response was expected to pass but it failed")
 				assertUsersSame(t, user, response.Ocs.Data, true)
 			}
@@ -1125,13 +1125,25 @@ func TestGetUserInvalidId(t *testing.T) {
 					}
 				}
 
-				assertStatusCode(t, 404, res, ocsVersion)
-				assert.False(t, response.Ocs.Meta.Success(ocsVersion), "the response was expected to fail but passed")
-				assertResponseMeta(t, Meta{
-					Status:     "error",
-					StatusCode: 998,
-					Message:    "not found",
-				}, response.Ocs.Meta)
+				assertHTTPStatusCode(t, 404, res, ocsVersion)
+				assert.False(t, response.Ocs.Meta.Success(ocsVersion), "the response was expected to fail but was successful")
+
+				switch ocsVersion {
+				case ocsV1:
+					assertResponseMeta(t, Meta{
+						Status:     "error",
+						StatusCode: 998,
+						Message:    "not found",
+					}, response.Ocs.Meta)
+				case ocsV2:
+					assertResponseMeta(t, Meta{
+						Status:     "error",
+						StatusCode: 404,
+						Message:    "not found",
+					}, response.Ocs.Meta)
+				default:
+					t.Fail()
+				}
 				cleanUp(t)
 			}
 		}
@@ -1177,7 +1189,7 @@ func TestDeleteUser(t *testing.T) {
 
 			response := assertEmptyResponse(t, format, res)
 
-			assertStatusCode(t, 200, res, ocsVersion)
+			assertHTTPStatusCode(t, 200, res, ocsVersion)
 			assert.True(t, response.Ocs.Meta.Success(ocsVersion), unsuccessfulResponseText)
 			assert.Empty(t, response.Ocs.Data)
 
@@ -1233,15 +1245,26 @@ func TestDeleteUserInvalidId(t *testing.T) {
 
 					response := assertEmptyResponse(t, format, res)
 
-					assertStatusCode(t, 404, res, ocsVersion)
-					assert.False(t, response.Ocs.Meta.Success(ocsVersion), "The response was not expected to be successful but was")
+					assertHTTPStatusCode(t, 404, res, ocsVersion)
+					assert.False(t, response.Ocs.Meta.Success(ocsVersion), "the response was expected to fail but was successful")
 					assert.Empty(t, response.Ocs.Data)
 
-					assertResponseMeta(t, Meta{
-						Status:     "error",
-						StatusCode: 998,
-						Message:    "The requested user could not be found",
-					}, response.Ocs.Meta)
+					switch ocsVersion {
+					case ocsV1:
+						assertResponseMeta(t, Meta{
+							Status:     "error",
+							StatusCode: 998,
+							Message:    "The requested user could not be found",
+						}, response.Ocs.Meta)
+					case ocsV2:
+						assertResponseMeta(t, Meta{
+							Status:     "error",
+							StatusCode: 404,
+							Message:    "The requested user could not be found",
+						}, response.Ocs.Meta)
+					default:
+						t.Fail()
+					}
 				})
 			}
 		}
@@ -1393,10 +1416,10 @@ func TestUpdateUser(t *testing.T) {
 
 				if data.Error != nil {
 					assertResponseMeta(t, *data.Error, response.Ocs.Meta)
-					assertStatusCode(t, 400, res, ocsVersion)
+					assertHTTPStatusCode(t, 400, res, ocsVersion)
 				} else {
 					assert.True(t, response.Ocs.Meta.Success(ocsVersion), unsuccessfulResponseText)
-					assertStatusCode(t, 200, res, ocsVersion)
+					assertHTTPStatusCode(t, 200, res, ocsVersion)
 				}
 
 				// Check deleted user doesn't exist and the other user does
@@ -1476,7 +1499,7 @@ func TestGetSingleUser(t *testing.T) {
 				}
 			}
 
-			assertStatusCode(t, 200, res, ocsVersion)
+			assertHTTPStatusCode(t, 200, res, ocsVersion)
 			assert.True(t, userResponse.Ocs.Meta.Success(ocsVersion), "The response was expected to pass but it failed")
 			assertUserSame(t, user, userResponse.Ocs.Data)
 
@@ -1518,7 +1541,7 @@ func TestGetUserSigningKey(t *testing.T) {
 
 			response := assertEmptyResponse(t, format, res)
 
-			assertStatusCode(t, 500, res, ocsVersion)
+			assertHTTPStatusCode(t, 500, res, ocsVersion)
 			assert.False(t, response.Ocs.Meta.Success(ocsVersion), "The response was expected to be a failure but was not")
 			assertResponseMeta(t, Meta{
 				Status:     "error",
@@ -1596,7 +1619,7 @@ func TestListUsersGroupNewUsers(t *testing.T) {
 					}
 				}
 
-				assertStatusCode(t, 200, res, ocsVersion)
+				assertHTTPStatusCode(t, 200, res, ocsVersion)
 				assert.True(t, response.Ocs.Meta.Success(ocsVersion), unsuccessfulResponseText)
 				// TODO why should new users be in the users group?
 				assert.Equal(t, []string{groupUsers}, response.Ocs.Data.Groups)
@@ -1636,7 +1659,7 @@ func TestListUsersGroupDefaultUsers(t *testing.T) {
 					}
 				}
 
-				assertStatusCode(t, 200, res, ocsVersion)
+				assertHTTPStatusCode(t, 200, res, ocsVersion)
 				assert.True(t, response.Ocs.Meta.Success(ocsVersion), unsuccessfulResponseText)
 
 				assert.Equal(t, defaultMemberOf[user], response.Ocs.Data.Groups)
@@ -1674,14 +1697,25 @@ func TestGetGroupForUserInvalidUserId(t *testing.T) {
 
 					response := assertEmptyResponse(t, format, res)
 
-					assertStatusCode(t, 404, res, ocsVersion)
+					assertHTTPStatusCode(t, 404, res, ocsVersion)
 					assert.False(t, response.Ocs.Meta.Success(ocsVersion), unsuccessfulResponseText)
-					assertResponseMeta(t, Meta{
-						Status:     "error",
-						StatusCode: 998,
-						Message:    "The requested user could not be found",
-					}, response.Ocs.Meta)
 
+					switch ocsVersion {
+					case ocsV1:
+						assertResponseMeta(t, Meta{
+							Status:     "error",
+							StatusCode: 998,
+							Message:    "The requested user could not be found",
+						}, response.Ocs.Meta)
+					case ocsV2:
+						assertResponseMeta(t, Meta{
+							Status:     "error",
+							StatusCode: 404,
+							Message:    "The requested user could not be found",
+						}, response.Ocs.Meta)
+					default:
+						t.Fail()
+					}
 					assert.Empty(t, response.Ocs.Data)
 				})
 			}
@@ -1732,7 +1766,7 @@ func TestAddUsersToGroupsNewUsers(t *testing.T) {
 
 					response := assertEmptyResponse(t, format, res)
 
-					assertStatusCode(t, 200, res, ocsVersion)
+					assertHTTPStatusCode(t, 200, res, ocsVersion)
 					assert.True(t, response.Ocs.Meta.Success(ocsVersion), unsuccessfulResponseText)
 					assert.Empty(t, response.Ocs.Data)
 
@@ -1799,13 +1833,25 @@ func TestAddUsersToGroupInvalidGroup(t *testing.T) {
 
 				response := assertEmptyResponse(t, format, res)
 
-				assertStatusCode(t, 404, res, ocsVersion)
-				assert.False(t, response.Ocs.Meta.Success(ocsVersion), "The response was expected to be fail but was successful")
-				assertResponseMeta(t, Meta{
-					"error",
-					998,
-					"The requested group could not be found",
-				}, response.Ocs.Meta)
+				assertHTTPStatusCode(t, 404, res, ocsVersion)
+				assert.False(t, response.Ocs.Meta.Success(ocsVersion), "the response was expected to fail but was successful")
+
+				switch ocsVersion {
+				case ocsV1:
+					assertResponseMeta(t, Meta{
+						Status:     "error",
+						StatusCode: 998,
+						Message:    "The requested group could not be found",
+					}, response.Ocs.Meta)
+				case ocsV2:
+					assertResponseMeta(t, Meta{
+						Status:     "error",
+						StatusCode: 404,
+						Message:    "The requested group could not be found",
+					}, response.Ocs.Meta)
+				default:
+					t.Fail()
+				}
 				assert.Empty(t, response.Ocs.Data)
 			}
 		}
@@ -1904,7 +1950,7 @@ func TestCapabilities(t *testing.T) {
 
 			response := assertEmptyResponse(t, format, res)
 
-			assertStatusCode(t, 404, res, ocsVersion)
+			assertHTTPStatusCode(t, 404, res, ocsVersion)
 			assertResponseMeta(t, Meta{
 				"error",
 				998,
@@ -1942,7 +1988,7 @@ func TestGetConfig(t *testing.T) {
 				}
 			}
 
-			assertStatusCode(t, 200, res, ocsVersion)
+			assertHTTPStatusCode(t, 200, res, ocsVersion)
 			assert.True(t, response.Ocs.Meta.Success(ocsVersion), unsuccessfulResponseText)
 			assert.Equal(t, OcsConfig{
 				"1.7", "ocis", "", "", "true",
@@ -1978,7 +2024,7 @@ func TestGetGroupsDefaultGroups(t *testing.T) {
 				}
 			}
 
-			assertStatusCode(t, 200, res, ocsVersion)
+			assertHTTPStatusCode(t, 200, res, ocsVersion)
 			assert.True(t, response.Ocs.Meta.Success(ocsVersion), unsuccessfulResponseText)
 			assert.Subset(t, defaultGroups, response.Ocs.Data.Groups)
 		}
@@ -2129,13 +2175,25 @@ func TestDeleteGroupInvalidGroups(t *testing.T) {
 
 				response := assertEmptyResponse(t, format, res)
 
-				assertStatusCode(t, 404, res, ocsVersion)
-				assert.False(t, response.Ocs.Meta.Success(ocsVersion), "The response was expected to fail but was successful")
-				assertResponseMeta(t, Meta{
-					"error",
-					998,
-					"The requested group could not be found",
-				}, response.Ocs.Meta)
+				assertHTTPStatusCode(t, 404, res, ocsVersion)
+				assert.False(t, response.Ocs.Meta.Success(ocsVersion), "the response was expected to fail but was successful")
+
+				switch ocsVersion {
+				case ocsV1:
+					assertResponseMeta(t, Meta{
+						Status:     "error",
+						StatusCode: 998,
+						Message:    "The requested group could not be found",
+					}, response.Ocs.Meta)
+				case ocsV2:
+					assertResponseMeta(t, Meta{
+						Status:     "error",
+						StatusCode: 404,
+						Message:    "The requested group could not be found",
+					}, response.Ocs.Meta)
+				default:
+					t.Fail()
+				}
 				cleanUp(t)
 			}
 		}
@@ -2171,7 +2229,7 @@ func TestGetGroupMembersDefaultGroups(t *testing.T) {
 					}
 				}
 
-				assertStatusCode(t, 200, res, ocsVersion)
+				assertHTTPStatusCode(t, 200, res, ocsVersion)
 				assert.True(t, response.Ocs.Meta.Success(ocsVersion), unsuccessfulResponseText+" for group "+group)
 				assert.Equal(t, members, response.Ocs.Data.Users)
 
@@ -2207,13 +2265,24 @@ func TestListMembersInvalidGroups(t *testing.T) {
 
 				response := assertEmptyResponse(t, format, res)
 
-				assertStatusCode(t, 404, res, ocsVersion)
+				assertHTTPStatusCode(t, 404, res, ocsVersion)
 				assert.False(t, response.Ocs.Meta.Success(ocsVersion), "The response was expected to fail but was successful")
-				assertResponseMeta(t, Meta{
-					"error",
-					998,
-					"The requested group could not be found",
-				}, response.Ocs.Meta)
+				switch ocsVersion {
+				case ocsV1:
+					assertResponseMeta(t, Meta{
+						Status:     "error",
+						StatusCode: 998,
+						Message:    "The requested group could not be found",
+					}, response.Ocs.Meta)
+				case ocsV2:
+					assertResponseMeta(t, Meta{
+						Status:     "error",
+						StatusCode: 404,
+						Message:    "The requested group could not be found",
+					}, response.Ocs.Meta)
+				default:
+					t.Fail()
+				}
 				cleanUp(t)
 			}
 		}
