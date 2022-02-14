@@ -38,16 +38,16 @@ Feature: Share spaces
       | driveType         | project              |
       | id                | %space_id%           |
       | name              | Share space to Brian |
-      | owner@@@user@@@id | %user_id%            | 
+      | owner@@@user@@@id | %user_id%            |
 
-  
+
   Scenario: A user can see who has been granted access
     Given user "Alice" has created a space "Share space to Brian" of type "project" with quota "10"
     And user "Alice" has shared a space "Share space to Brian" to user "Brian" with role "viewer"
     When user "Alice" lists all available spaces via the GraphApi
     Then the json responded should contain a space "Share space to Brian" granted to "Brian" with these key and value pairs:
       | key                                                    | value      |
-      | root@@@permissions@@@1@@@grantedTo@@@0@@@user@@@id     | %user_id%  | 
+      | root@@@permissions@@@1@@@grantedTo@@@0@@@user@@@id     | %user_id%  |
       | root@@@permissions@@@1@@@roles@@@0                     | viewer     |
 
 
@@ -80,3 +80,23 @@ Feature: Share spaces
     Then the HTTP status code should be "200"
     And user "Brian" lists all available spaces via the GraphApi
     And the json responded should not contain a space with name "Unshare space"
+
+  Scenario: A user can add another user to the space managers to enable him
+    Given user "Alice" has created a space "Multiple Managers" of type "project" with quota "10"
+    And user "Alice" has uploaded a file inside space "Multiple Managers" with content "Test" to "test.txt"
+    When user "Alice" has shared a space "Multiple Managers" to user "Brian" with role "manager"
+    Then user "Brian" lists all available spaces via the GraphApi
+    And the json responded should contain a space "Multiple Managers" granted to "Brian" with these key and value pairs:
+      | key                                                    | value       |
+      | root@@@permissions@@@0@@@grantedTo@@@1@@@user@@@id     | %user_id%   |
+      | root@@@permissions@@@0@@@roles@@@0                     | manager     |
+      | driveType                                              | project     |
+    When user "Brian" has shared a space "Multiple Managers" to user "Bob" with role "viewer"
+    Then user "Bob" lists all available spaces via the GraphApi
+    And the json responded should contain a space "Multiple Managers" granted to "Bob" with these key and value pairs:
+      | key                                                    | value       |
+      | root@@@permissions@@@1@@@grantedTo@@@0@@@user@@@id     | %user_id%   |
+      | root@@@permissions@@@1@@@roles@@@0                     | viewer      |
+      | driveType                                              | project     |
+    And for user "Bob" the space "Multiple Managers" should contain these entries:
+      | test.txt |

@@ -217,11 +217,11 @@ class SpacesContext implements Context {
 		$fullUrl = $this->baseUrl . "/api/v0/accounts/accounts-list";
 		$this->featureContext->setResponse(
 			HttpRequestHelper::post(
-				$fullUrl, 
-				"", 
-				$this->featureContext->getAdminUsername(), 
-				$this->featureContext->getAdminPassword(), 
-				[], 
+				$fullUrl,
+				"",
+				$this->featureContext->getAdminUsername(),
+				$this->featureContext->getAdminPassword(),
+				[],
 				"{}"
 			)
 		);
@@ -756,7 +756,7 @@ class SpacesContext implements Context {
 
 	/**
 	 * @Then /^the json responded should contain a space "([^"]*)" (?:|(?:owned by|granted to) "([^"]*)" )with these key and value pairs:$/
-	 * 
+	 *
 	 * @param string $spaceName
 	 * @param string $userName
 	 * @param TableNode $table
@@ -785,7 +785,7 @@ class SpacesContext implements Context {
 							[$this, "getSpaceIdByNameFromResponse"],
 						"parameter" => [$spaceName]
 					],
-					[ 
+					[
 						"code" => "%user_id%",
 						"function" =>
 							[$this, "getUserIdByUserName"],
@@ -1339,22 +1339,12 @@ class SpacesContext implements Context {
 		string $userRecipient,
 		string $role
 	): void {
-		switch ($role) {
-			case "viewer":
-				$role = 1;
-				break;
-			case "editor":
-				$role = 15;
-				break;
-			default:
-				$role = 1;
-		}
 		$space = $this->getSpaceByName($user, $spaceName);
 		$body = [
-			"space_ref" => $space['id'], 
-			"shareType" => 7, 
-			"shareWith" => $userRecipient, 
-			"permissions" => $role
+			"space_ref" => $space['id'],
+			"shareType" => 7,
+			"shareWith" => $userRecipient,
+			"role" => $role // role overrides the permissions parameter
 		];
 
 		$fullUrl = $this->baseUrl . "/ocs/v2.php/apps/files_sharing/api/v1/shares";
